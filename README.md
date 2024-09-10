@@ -1,2 +1,2 @@
-# Dou-vacancies_analysis
-Dou-vacancies_analysis
+# Dou-vacancies-analysis
+Tool for scraping & analyzing Python vacancies at dou.ua
