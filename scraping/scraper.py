@@ -1,15 +1,13 @@
 import asyncio
 import csv
+import logging
 import os
 import re
-import time
 from collections import Counter
 
 import aiohttp
-import nltk
 from aiohttp import ClientSession
 from bs4 import BeautifulSoup
-from nltk.corpus import stopwords
 from selenium import webdriver
 from selenium.common import TimeoutException
 from selenium.webdriver.chrome.options import Options
@@ -19,12 +17,16 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 from webdriver_manager.chrome import ChromeDriverManager
 
+from nltk.corpus import stopwords
 
-nltk.download("stopwords")
 
 STOPWORDS = set(stopwords.words("english"))
+WORD_PATTERN = re.compile(r'\b\w+\b')
 
 VACANCIES_URL = "https://jobs.dou.ua/vacancies/?category=Python"
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 async def fetch_job_details(session: ClientSession, job_url: str) -> dict:
@@ -65,7 +67,7 @@ async def fetch_job_details(session: ClientSession, job_url: str) -> dict:
 
 
 def preprocess_text(text):
-    words = re.findall(r"\b\w+\b", text.lower())
+    words = WORD_PATTERN.findall(text.lower())
     words = [word for word in words if word not in STOPWORDS and len(word) > 2]
     return words
 
@@ -88,12 +90,14 @@ async def fetch_and_parse_vacancies(
             if (load_more_button.is_displayed()
                     and load_more_button.is_enabled()):
                 load_more_button.click()
-                time.sleep(2)
+                (WebDriverWait(driver, 15).until
+                 (EC.staleness_of(load_more_button))
+                 )
         except TimeoutException as e:
-            print(f"Timeout while waiting for 'Load More' button: {e}")
+            logger.warning(f"Timeout while waiting for 'Load More' button: {e}")
             break
         except Exception as e:
-            print(f"Error while clicking 'Load More' button: {e}")
+            logger.error(f"Error while clicking 'Load More' button: {e}")
             break
 
     soup = BeautifulSoup(driver.page_source, "html.parser")
